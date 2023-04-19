@@ -1,0 +1,33 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "Masterclass-dev"
+resolve_s3 = true
+region = "eu-central-1"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
+parameter_overrides = "Env=\"dev\" CognitoPoolTTLValueInHours=24 "
+
+[staging]
+[staging.deploy]
+[staging.deploy.parameters]
+stack_name = "Masterclass-staging"
+resolve_s3 = true
+region = "eu-central-1"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
+parameter_overrides = "Env=\"staging\" CognitoPoolTTLValueInHours=24 "
+
+[prod]
+[prod.deploy]
+[prod.deploy.parameters]
+stack_name = "Masterclass-prod"
+resolve_s3 = true
+region = "eu-central-1"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
+parameter_overrides = "Env=\"prod\" CognitoPoolTTLValueInHours=24 "

@@ -1,0 +1,198 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform:
+  - AWS::Serverless-2016-10-31
+Description: >
+  Masterclass
+  Demo Cognito authorizers with API gateway and lambda
+
+Parameters:
+  Env:
+    Type: String
+    Description: The env used
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+  CognitoPoolTTLValueInHours:
+    Type: Number
+    Description: TTL value in hours for access & ID tokens assigned by the Cognito User Pool
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 10
+    Runtime: nodejs14.x
+    Environment:
+      Variables:
+        ENV: !Ref Env
+  Api:
+    Cors:
+      AllowMethods: "'*'"
+      AllowHeaders: "'*'"
+      AllowOrigin: "'*'"
+      AllowCredentials: "'*'"
+
+Resources:
+  MasterClassAPI:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub ${AWS::StackName}
+      StageName: v1
+      Cors:
+        AllowMethods: "'*'"
+        AllowHeaders: "'*'"
+        AllowOrigin: "'*'"
+        AllowCredentials: "'*'"
+      Auth:
+        DefaultAuthorizer: CognitoUserCustomAuthorizer
+        Authorizers:
+          CognitoUserCustomAuthorizer:
+            UserPoolArn: !GetAtt CognitoUserPool.Arn
+            AuthorizationScopes:
+              - access_points/read
+              - access_points/write
+      GatewayResponses:
+        DEFAULT_4xx:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+        DEFAULT_5xx:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+
+  ########## Cognito #############
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ${AWS::StackName}-user-pool
+      Policies:
+        PasswordPolicy:
+          TemporaryPasswordValidityDays: 90
+          MinimumLength: 12
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+          RequireUppercase: false
+      UsernameAttributes:
+        - email
+      Schema:
+        - Mutable: true
+          AttributeDataType: String
+          Name: roleId
+          Required: false
+        - Mutable: true
+          AttributeDataType: String
+          Name: tenantId
+          Required: false
+        - Mutable: true
+          AttributeDataType: String
+          Name: tenantName
+          Required: false
+      AutoVerifiedAttributes:
+        - email
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      AccessTokenValidity: !Ref CognitoPoolTTLValueInHours
+      IdTokenValidity: !Ref CognitoPoolTTLValueInHours
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+      ClientName: !Sub ${AWS::StackName}-user-pool-client
+      AllowedOAuthFlowsUserPoolClient: True
+      UserPoolId:
+        Ref: CognitoUserPool
+      AllowedOAuthFlows:
+        - code
+      CallbackURLs:
+        - https://oauth.pstmn.io/v1/callback
+      AllowedOAuthScopes:
+        - access_points/read
+        - access_points/delete
+        - access_points/update
+        - access_points/write
+      SupportedIdentityProviders:
+        - COGNITO
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      Domain: demo-masterclass
+
+  UserPoolResourceServer:
+    Type: AWS::Cognito::UserPoolResourceServer
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      Identifier: access_points
+      Name: "MasterClass"
+      Scopes:
+        - ScopeDescription: "Read Resources"
+          ScopeName: "read"
+        - ScopeDescription: "Write Resources"
+          ScopeName: "write"
+        - ScopeDescription: "Delete Resources"
+          ScopeName: "delete"
+        - ScopeDescription: "Update Resources"
+          ScopeName: "update"
+
+  ########## End Cognito #############
+
+  ########## Serverless functions #############
+  GetAllItemsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-GetAllItems
+      Handler: src/handlers/get-all-items.getAllItemsHandler
+      Timeout: 300
+      Events:
+        getItems:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MasterClassAPI
+            Path: /items
+            Method: get
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: "*"
+              Resource: "*"
+  InsertItemFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-InsertItem
+      Handler: src/handlers/insert-item.insertItem
+      Timeout: 300
+      Events:
+        insertItem:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MasterClassAPI
+            Path: /items
+            Method: post
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: "*"
+              Resource: "*"
+
+  ########## End Serverless functions #############
+
+Outputs:
+  APIGatewayUrlOutput:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${MasterClassAPI}.execute-api.${AWS::Region}.amazonaws.com/v1"
+  CognitoUserPoolOutput:
+    Value:
+      Ref: CognitoUserPool
+    Export:
+      Name: !Sub "cognitoUserPool-${AWS::StackName}"
+  CognitoUserPoolClientOutput:
+    Value:
+      Ref: CognitoUserPoolClient
+    Export:
+      Name: !Sub "cognitoUserPoolClient-${AWS::StackName}"
