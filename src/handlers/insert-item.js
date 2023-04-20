@@ -18,9 +18,20 @@ exports.insertItem = async (event) => {
         message: "Item was inserted",
         id: result.insertedId.toString(),
       }),
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+      },
     };
   } catch (err) {
-    console.log(err);
-    return { statusCode: 500, body: JSON.stringify(err) };
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        message: "An error occured while inserting the item",
+        errorMessage: err,
+      }),
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+      },
+    };
   }
 };

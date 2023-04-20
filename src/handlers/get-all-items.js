@@ -11,10 +11,23 @@ exports.getAllItemsHandler = async (event) => {
       .toArray();
 
     await mongoClient.close();
-    console.log(result);
-    return { statusCode: 200, body: JSON.stringify(result) };
+    return {
+      statusCode: 200,
+      body: JSON.stringify(result),
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+      },
+    };
   } catch (err) {
-    console.log(err);
-    return { statusCode: 500, body: JSON.stringify(err) };
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        message: "An error occured while fetching all the items",
+        errorMessage: err,
+      }),
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+      },
+    };
   }
 };

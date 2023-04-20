@@ -25,6 +25,8 @@ Globals:
     Environment:
       Variables:
         ENV: !Ref Env
+        REGION: !Ref "AWS::Region"
+
   Api:
     Cors:
       AllowMethods: "'*'"
@@ -196,3 +198,5 @@ Outputs:
       Ref: CognitoUserPoolClient
     Export:
       Name: !Sub "cognitoUserPoolClient-${AWS::StackName}"
+  CognitoDomain:
+    Value: !Sub "https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
